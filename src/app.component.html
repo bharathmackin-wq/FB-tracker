@@ -1,0 +1,299 @@
+<div class="flex h-screen bg-slate-50 font-sans">
+  
+  <!-- Sidebar -->
+  <aside 
+    class="w-64 bg-slate-900 text-white flex flex-col flex-shrink-0 fixed md:relative inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out"
+    [class]="isSidebarOpen() ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
+    <div class="p-6 border-b border-slate-800">
+      <h1 class="text-xl font-bold tracking-tight text-indigo-400">AdProfit Analyzer</h1>
+      <p class="text-xs text-slate-400 mt-1">FB Ads ROI Optimizer</p>
+    </div>
+    
+    <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+      <div class="px-4 py-2 bg-slate-800 rounded-lg text-sm font-medium text-white">Dashboard</div>
+      
+      <div class="mt-8 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Products</div>
+      <div class="space-y-1 mt-2">
+        @for (product of state.products(); track product.id) {
+          <div class="px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded cursor-pointer transition-colors flex justify-between group">
+            <span class="truncate" (click)="viewProductDetails(product.id)">{{ product.name }}</span>
+            <button (click)="state.removeProduct(product.id)" class="hidden group-hover:block text-rose-500 hover:text-rose-400 font-bold px-1" title="Delete">×</button>
+          </div>
+        }
+        @if (state.products().length === 0) {
+          <div class="px-4 py-2 text-sm text-slate-600 italic">No products yet.</div>
+        }
+      </div>
+    </nav>
+    
+    <div class="p-4 border-t border-slate-800">
+      <div class="text-xs text-slate-500">
+        Data stored locally in session.
+      </div>
+    </div>
+  </aside>
+
+  <!-- Overlay for mobile sidebar -->
+  @if (isSidebarOpen()) {
+    <div (click)="isSidebarOpen.set(false)" class="fixed inset-0 bg-black/40 z-20 md:hidden"></div>
+  }
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col overflow-hidden relative">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8 flex-shrink-0 z-10">
+       <div class="flex items-center gap-2">
+        <button (click)="isSidebarOpen.set(true)" class="md:hidden text-slate-600 p-2 -ml-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <h2 class="text-lg font-semibold text-slate-800">Performance Overview</h2>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        <button (click)="openAddProductModal()" 
+          class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-medium transition-all border border-slate-300">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span class="hidden sm:inline">Add Product</span>
+        </button>
+
+        <button (click)="analyzeWithAI()" 
+          [disabled]="isAnalyzing()"
+          class="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-md disabled:opacity-70 disabled:cursor-wait">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+          <span class="hidden sm:inline">{{ isAnalyzing() ? 'Analyzing...' : 'Ask AI' }}</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Scrollable Content -->
+    <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+      
+      <!-- KPI Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <app-kpi-card 
+          label="Total Revenue" 
+          [value]="formatCurrency(state.totalRevenue())"
+          trend="positive"
+        ></app-kpi-card>
+        
+        <app-kpi-card 
+          label="Total Ad Spend" 
+          [value]="formatCurrency(state.totalSpend())" 
+          subtext="Invested"
+        ></app-kpi-card>
+
+        <app-kpi-card 
+          label="Misc. Expenses" 
+          [value]="formatCurrency(state.totalMiscExpenses())"
+        ></app-kpi-card>
+        
+        <app-kpi-card 
+          label="Net Profit" 
+          [value]="formatCurrency(state.totalProfit())"
+          [trend]="state.totalProfit() >= 0 ? 'positive' : 'negative'"
+        ></app-kpi-card>
+        
+        <app-kpi-card 
+          label="Global ROAS" 
+          [value]="state.globalRoas().toFixed(2) + 'x'"
+          [subtext]="getRoasLabel(state.globalRoas())"
+          [trend]="state.globalRoas() >= 2 ? 'positive' : (state.globalRoas() >= 1 ? 'neutral' : 'negative')"
+        ></app-kpi-card>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-3 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200 min-h-[400px]">
+          <app-global-trend-chart [data]="state.aggregatedDailyStats()"></app-global-trend-chart>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Guide (Horizontal) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-lg flex flex-col justify-center">
+          <div class="font-bold text-indigo-900 mb-1">CPA (Cost Per Action)</div>
+          <div class="text-sm text-indigo-800">Spend / Purchases. Keep lower than your product's price.</div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-lg flex flex-col justify-center">
+          <div class="font-bold text-indigo-900 mb-1">ROI (Return on Investment)</div>
+          <div class="text-sm text-indigo-800">(Profit / Spend) x 100. The ultimate measure of profitability.</div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-lg flex flex-col justify-center">
+          <div class="font-bold text-indigo-900 mb-1">ROAS (Return On Spend)</div>
+          <div class="text-sm text-indigo-800">Revenue / Spend. Aim for 2.0x+ for scalability.</div>
+        </div>
+      </div>
+
+      <!-- Ad Testing Lab Section -->
+      <app-testing-lab></app-testing-lab>
+
+      <!-- Detailed Breakdown Section -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-4 py-4 md:px-6 border-b border-slate-200">
+          <h3 class="font-semibold text-slate-800">Detailed Breakdown</h3>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div class="md:hidden">
+            @for (p of state.products(); track p.id) {
+              <div class="border-b border-slate-100 p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                      <div class="font-semibold text-slate-800">{{ p.name }}</div>
+                      <div class="text-xs text-slate-500">Price: {{ formatCurrency(p.price) }}</div>
+                    </div>
+                    <button (click)="viewProductDetails(p.id)" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-xs font-bold transition-colors hover:bg-indigo-200">
+                      View
+                    </button>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center mt-3 pt-3 border-t border-slate-100">
+                  <div>
+                    <div class="text-xs text-slate-500">Profit</div>
+                    <div class="font-bold" [class]="p.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'">{{ formatCurrency(p.profit) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500">ROI</div>
+                    <div class="font-medium" [class]="p.roi >= 0 ? 'text-emerald-600' : 'text-rose-600'">{{ p.roi.toFixed(1) }}%</div>
+                  </div>
+                   <div>
+                    <div class="text-xs text-slate-500">CPA</div>
+                    <div class="font-medium" [class.text-rose-600]="p.cpa > p.price">{{ formatCurrency(p.cpa) }}</div>
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <div class="px-6 py-8 text-center text-slate-400">No data available. Add a product to get started.</div>
+            }
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-medium text-xs">
+              <tr>
+                <th class="px-6 py-3">Product</th>
+                <th class="px-6 py-3 text-right">Price</th>
+                <th class="px-6 py-3 text-right">Spend</th>
+                <th class="px-6 py-3 text-right">CPA</th>
+                <th class="px-6 py-3 text-right">ROI</th>
+                <th class="px-6 py-3 text-right">Total Profit</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @for (p of state.products(); track p.id) {
+                @if (editingProductId() === p.id) {
+                  <tr class="bg-indigo-50 transition-colors group" [formGroup]="editForm">
+                    <!-- Editing state -->
+                    <td class="px-6 py-4">
+                      <input formControlName="name" class="w-full max-w-[250px] px-2 py-1 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                      <div class="flex justify-end">
+                        <input type="number" formControlName="price" class="w-24 px-2 py-1 text-right bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-right text-slate-500">{{ formatCurrency(p.adSpend) }}</td>
+                    <td class="px-6 py-4 text-right text-slate-500" [class.text-rose-600]="p.cpa > p.price">{{ formatCurrency(p.cpa) }}</td>
+                    <td class="px-6 py-4 text-right font-medium text-slate-500" [class]="p.roi >= 0 ? 'text-emerald-600' : 'text-rose-600'">{{ p.roi.toFixed(1) }}%</td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            <button (click)="saveEdit()" [disabled]="editForm.invalid" class="text-emerald-600 hover:text-emerald-800 p-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </button>
+                            <button (click)="cancelEdit()" class="text-slate-500 hover:text-slate-700 p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                  </tr>
+                } @else {
+                  <tr class="hover:bg-slate-50 transition-colors group">
+                    <td class="px-6 py-4 font-medium text-slate-800">
+                      <div (click)="viewProductDetails(p.id)" class="cursor-pointer hover:text-indigo-600 transition-colors">{{ p.name }}</div>
+                      @if (p.description) {
+                        <div class="text-xs text-slate-500 font-normal mt-0.5 truncate max-w-[250px]" [title]="p.description">{{ p.description }}</div>
+                      }
+                    </td>
+                    <td class="px-6 py-4 text-right">{{ formatCurrency(p.price) }}</td>
+                    <td class="px-6 py-4 text-right">{{ formatCurrency(p.adSpend) }}</td>
+                    <td class="px-6 py-4 text-right" [class.text-rose-600]="p.cpa > p.price">{{ formatCurrency(p.cpa) }}</td>
+                    <td class="px-6 py-4 text-right font-medium" [class]="p.roi >= 0 ? 'text-emerald-600' : 'text-rose-600'">{{ p.roi.toFixed(1) }}%</td>
+                    <td class="px-6 py-4 text-right font-bold" [class]="p.profit >= 0 ? 'text-emerald-700' : 'text-rose-700'">
+                      <div class="flex items-center justify-end gap-4">
+                        <span>{{ formatCurrency(p.profit) }}</span>
+                        <button (click)="startEditing(p)" class="text-indigo-600 hover:text-indigo-800 p-1 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+              @if (state.products().length === 0) {
+                <tr>
+                  <td colspan="6" class="px-6 py-8 text-center text-slate-400">No data available. Add a product using the button above.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- AI Overlay -->
+    @if (showAiOverlay()) {
+      <div class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-600 text-white">
+            <h3 class="text-lg font-bold flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              AI Analysis Report
+            </h3>
+            <button (click)="closeAiOverlay()" class="text-white/80 hover:text-white transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          
+          <div class="p-8 overflow-y-auto prose prose-slate max-w-none">
+             @if (aiContent()) {
+               <div [innerHTML]="formatAiResponse(aiContent())" class="text-slate-700 leading-relaxed space-y-4"></div>
+             } @else {
+               <div class="flex flex-col items-center justify-center py-12 space-y-4">
+                 <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                 <p class="text-slate-500 font-medium">Analyzing your ad data...</p>
+               </div>
+             }
+          </div>
+          
+          <div class="p-4 border-t border-slate-100 bg-slate-50 text-right">
+             <button (click)="closeAiOverlay()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Done</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Add Product Modal -->
+    @if (showAddProductModal()) {
+      <div class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 relative">
+          <button (click)="closeAddProductModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <!-- Using the existing component but wrapped in modal styles -->
+          <app-product-form (add)="onProductAdded($event)"></app-product-form>
+        </div>
+      </div>
+    }
+
+    <!-- Product Detail Modal -->
+    @if (selectedProduct(); as product) {
+      <div class="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white w-full h-full md:w-[90%] md:h-[90%] md:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
+           <app-product-detail [product]="product" (close)="closeProductDetails()"></app-product-detail>
+        </div>
+      </div>
+    }
+
+  </main>
+</div>
